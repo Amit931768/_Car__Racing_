@@ -1,0 +1,289 @@
+<!DOCTYPE html>
+<html>
+<head>
+<title>Jet Road Fighter</title>
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<style>
+body{
+  margin:0;
+  background:#05050a;
+  overflow:hidden;
+  font-family:Arial;
+}
+#ui{
+  color:#c77dff;
+  text-align:center;
+  padding:6px;
+  font-size:14px;
+}
+#controls{
+  position:fixed;
+  bottom:20px;
+  right:20px;
+}
+#fireBtn{
+  background:#c77dff;
+  color:#000;
+  border:none;
+  border-radius:50%;
+  width:70px;
+  height:70px;
+  font-size:14px;
+  font-weight:bold;
+}
+#guide{
+  position:fixed;
+  left:10px;
+  bottom:20px;
+  color:#aaa;
+  font-size:12px;
+}
+canvas{
+  display:block;
+  margin:auto;
+  background:#222;
+  border:4px solid #c77dff;
+}
+</style>
+</head>
+
+<body>
+
+<div id="ui">Score: 0 | $: 0</div>
+<div id="guide">
+⬅️ ➡️ Move<br>
+SPACE / FIRE = Missile
+</div>
+
+<div id="controls">
+<button id="fireBtn">FIRE</button>
+</div>
+
+<canvas id="game" width="360" height="600"></canvas>
+
+<script>
+const c=document.getElementById("game");
+const ctx=c.getContext("2d");
+const ui=document.getElementById("ui");
+const fireBtn=document.getElementById("fireBtn");
+
+const lanes=[90,160,230];
+let roadY=0, score=0, dollars=0;
+let baseSpeed=2.5;
+let speed=baseSpeed;
+let flames=[], enemies=[], missiles=[], blasts=[], collectibles=[];
+let running=true;
+
+let player={ lane:1, x:lanes[1], y:470 };
+
+document.addEventListener("keydown",e=>{
+  if(e.key==="ArrowLeft" && player.lane>0) player.lane--;
+  if(e.key==="ArrowRight" && player.lane<2) player.lane++;
+  if(e.code==="Space") fireMissile();
+});
+fireBtn.onclick=fireMissile;
+
+/* ROAD */
+function drawRoad(){
+  ctx.fillStyle="#2b2b35";
+  ctx.fillRect(60,0,240,600);
+
+  ctx.strokeStyle="#777";
+  ctx.lineWidth=2;
+  for(let i=0;i<10;i++){
+    let y=(i*80+roadY)%600;
+    ctx.beginPath(); ctx.moveTo(120,y); ctx.lineTo(120,y+40); ctx.stroke();
+    ctx.beginPath(); ctx.moveTo(200,y); ctx.lineTo(200,y+40); ctx.stroke();
+  }
+  roadY+=speed;
+}
+
+/* PURPLE JET */
+function drawJet(x,y){
+  let g=ctx.createLinearGradient(x,y-60,x,y+60);
+  g.addColorStop(0,"#e0aaff");
+  g.addColorStop(1,"#5a189a");
+  ctx.fillStyle=g;
+
+  ctx.beginPath();
+  ctx.moveTo(x,y-60);
+  ctx.lineTo(x-14,y+45);
+  ctx.lineTo(x+14,y+45);
+  ctx.closePath();
+  ctx.fill();
+
+  ctx.fillRect(x-45,y-5,90,10);
+  ctx.fillRect(x-22,y+30,44,8);
+
+  ctx.fillStyle="#000";
+  ctx.beginPath();
+  ctx.arc(x,y-25,6,0,Math.PI*2);
+  ctx.fill();
+}
+
+/* FLAME */
+function addFlame(){
+  flames.push({
+    x:player.x + (Math.random()*8-4),
+    y:player.y+45,
+    r:4 + Math.random()*3,
+    a:1
+  });
+}
+
+function drawFlame(){
+  flames.forEach(f=>{
+    let gradient=ctx.createRadialGradient(f.x,f.y,0,f.x,f.y,f.r);
+    gradient.addColorStop(0,"rgba(255,255,200,"+f.a+")");
+    gradient.addColorStop(0.3,"rgba(255,180,50,"+f.a+")");
+    gradient.addColorStop(0.6,"rgba(255,80,0,"+f.a+")");
+    gradient.addColorStop(1,"rgba(0,0,0,0)");
+    ctx.fillStyle=gradient;
+    ctx.beginPath();
+    ctx.arc(f.x,f.y,f.r,0,Math.PI*2);
+    ctx.fill();
+
+    f.y+=3 + Math.random()*2;
+    f.r+=0.5;
+    f.a-=0.03;
+  });
+  flames=flames.filter(f=>f.a>0);
+}
+
+/* MISSILES */
+function fireMissile(){
+  missiles.push({x:player.x,y:player.y-60});
+}
+function drawMissiles(){
+  missiles.forEach(m=>{
+    ctx.fillStyle="#ffea00";
+    ctx.fillRect(m.x-3,m.y,6,22);
+    ctx.fillStyle="#ff9f1c";
+    ctx.fillRect(m.x-1,m.y+20,2,10);
+    m.y-=10 + speed*0.5;
+  });
+  missiles=missiles.filter(m=>m.y>-40);
+}
+
+/* BLAST */
+function drawBlasts(){
+  blasts.forEach(b=>{
+    ctx.fillStyle=`rgba(255,50,0,${b.a})`;
+    ctx.beginPath();
+    ctx.arc(b.x,b.y,b.r,0,Math.PI*2);
+    ctx.fill();
+    b.r+=3;
+    b.a-=0.05;
+  });
+  blasts=blasts.filter(b=>b.a>0);
+}
+
+/* ENEMY */
+function spawnEnemy(){
+  let lane=Math.floor(Math.random()*3);
+  enemies.push({
+    x:lanes[lane],
+    y:-120,
+    color:["red","yellow","lime","cyan"][Math.floor(Math.random()*4)]
+  });
+}
+function drawEnemy(e){
+  ctx.fillStyle=e.color;
+  ctx.fillRect(e.x-18,e.y,36,65);
+  ctx.fillStyle="#000";
+  ctx.fillRect(e.x-10,e.y+18,20,25);
+}
+
+/* COLLECTIBLE DOLLARS */
+function spawnDollar(){
+  let lane=Math.floor(Math.random()*3);
+  collectibles.push({
+    x:lanes[lane],
+    y:-50,
+    collected:false
+  });
+}
+function drawDollars(){
+  collectibles.forEach(d=>{
+    ctx.fillStyle="#00ff00";
+    ctx.font="20px Arial";
+    ctx.textAlign="center";
+    ctx.fillText("$",d.x,d.y);
+    d.y+=speed;
+  });
+}
+
+/* UPDATE */
+function update(){
+  if(!running) return;
+
+  player.x=lanes[player.lane];
+  addFlame();
+
+  speed = baseSpeed + score*0.002;
+
+  enemies.forEach(e=>e.y+=speed);
+  enemies=enemies.filter(e=>e.y<650);
+
+  missiles.forEach(m=>{
+    enemies.forEach(e=>{
+      if(Math.abs(m.x-e.x)<18 && Math.abs(m.y-e.y)<35){
+        e.hit=true;
+        blasts.push({x:e.x,y:e.y,r:15,a:1});
+        score+=100;
+      }
+    });
+  });
+  enemies=enemies.filter(e=>!e.hit);
+
+  // Enemy collision
+  enemies.forEach(e=>{
+    if(Math.abs(player.x-e.x)<20 && Math.abs(player.y-e.y)<35){
+      running=false;
+      blasts.push({x:player.x,y:player.y,r:40,a:1});
+      draw();
+      setTimeout(()=>alert("Game Over\nScore: "+score+"\n$ Collected: "+dollars),50);
+      setTimeout(()=>location.reload(),200);
+    }
+  });
+
+  // Dollar collection
+  collectibles.forEach(d=>{
+    if(!d.collected && Math.abs(player.x-d.x)<20 && Math.abs(player.y-d.y)<20){
+      d.collected=true;
+      dollars+=1;
+      score+=50;
+    }
+  });
+
+  collectibles=collectibles.filter(d=>!d.collected && d.y<650);
+
+  if(Math.random()<0.015) spawnEnemy();
+  if(Math.random()<0.01) spawnDollar();
+
+  score++;
+}
+
+/* DRAW */
+function draw(){
+  ctx.clearRect(0,0,360,600);
+  drawRoad();
+  drawFlame();
+  drawJet(player.x,player.y);
+  drawMissiles();
+  drawBlasts();
+  enemies.forEach(drawEnemy);
+  drawDollars();
+  ui.innerText="Score: "+score+" | $: "+dollars;
+}
+
+function loop(){
+  update();
+  draw();
+  requestAnimationFrame(loop);
+}
+loop();
+</script>
+
+</body>
+</html>
