@@ -19,46 +19,33 @@ body{
 #controls{
   position:fixed;
   bottom:20px;
-  right:20px;
-  width:140px;
+  left:0;
+  width:100%;
   height:160px;
+  pointer-events:none;
 }
 button{
-  cursor:pointer;
-  transition: transform 0.1s, background 0.3s;
   position:absolute;
-  border:none;
-  color:#000;
-  font-weight:bold;
-}
-/* All buttons as circles */
-#fireBtn, #leftBtn, #rightBtn{
   width:60px;
   height:60px;
   border-radius:50%;
   background:#c77dff;
+  border:none;
   font-size:18px;
-  text-align:center;
-  line-height:60px;
+  font-weight:bold;
+  pointer-events:auto;
+  cursor:pointer;
+  transition:0.2s;
 }
-/* Hover effect - purple to pink gradient */
-#fireBtn:hover, #leftBtn:hover, #rightBtn:hover{
-  background: linear-gradient(45deg, #9b5de5, #f15bb5);
-  color:#fff;
+button:hover{
+  background: linear-gradient(45deg,#9b5de5,#f15bb5);
+  color:white;
 }
-/* Positioning */
-#fireBtn{
-  top:0;
-  left:40px;
-}
-#leftBtn{
-  bottom:0;
-  left:0;
-}
-#rightBtn{
-  bottom:0;
-  right:0;
-}
+
+#fireBtn{ bottom:80px; right:20px; }
+#rightBtn{ bottom:10px; right:20px; }
+#leftBtn{ bottom:10px; left:20px; }
+
 canvas{
   display:block;
   margin:auto;
@@ -80,49 +67,63 @@ canvas{
 <canvas id="game" width="360" height="600"></canvas>
 
 <script>
-const c=document.getElementById("game");
-const ctx=c.getContext("2d");
-const ui=document.getElementById("ui");
-const fireBtn=document.getElementById("fireBtn");
-const leftBtn=document.getElementById("leftBtn");
-const rightBtn=document.getElementById("rightBtn");
+const c = document.getElementById("game");
+const ctx = c.getContext("2d");
+const ui = document.getElementById("ui");
 
-const lanes=[90,160,230];
-let roadY=0, score=0, dollars=0;
-let baseSpeed=2.5;
-let speed=baseSpeed;
-let flames=[], enemies=[], missiles=[], blasts=[], collectibles=[];
-let running=true;
+const fireBtn = document.getElementById("fireBtn");
+const leftBtn = document.getElementById("leftBtn");
+const rightBtn = document.getElementById("rightBtn");
 
-let player={ lane:1, x:lanes[1], y:470 };
+// NEW: 4 lanes based on full width
+const lanes = [
+  c.width * 0.125,
+  c.width * 0.375,
+  c.width * 0.625,
+  c.width * 0.875
+];
 
-// Keyboard controls
-document.addEventListener("keydown",e=>{
-  if(e.key==="ArrowLeft" && player.lane>0) player.lane--;
-  if(e.key==="ArrowRight" && player.lane<2) player.lane++;
-  if(e.code==="Space") fireMissile();
+let roadY = 0, score = 0, dollars = 0;
+let baseSpeed = 2.5, speed = baseSpeed;
+let flames = [], enemies = [], missiles = [], blasts = [], collectibles = [];
+let running = true;
+
+let player = { lane:1, x:lanes[1], y:470 };
+
+/* CONTROLS */
+document.addEventListener("keydown", e => {
+  if (e.key === "ArrowLeft" && player.lane > 0) player.lane--;
+  if (e.key === "ArrowRight" && player.lane < lanes.length - 1) player.lane++;
+  if (e.code === "Space") fireMissile();
 });
-
-// Touch buttons
-leftBtn.onclick=()=>{ if(player.lane>0) player.lane--; };
-rightBtn.onclick=()=>{ if(player.lane<2) player.lane++; };
-fireBtn.onclick=fireMissile;
+leftBtn.onclick = () => { if (player.lane > 0) player.lane--; };
+rightBtn.onclick = () => { if (player.lane < lanes.length - 1) player.lane++; };
+fireBtn.onclick = fireMissile;
 
 /* ROAD */
 function drawRoad(){
-  ctx.fillStyle="#2b2b35";
-  ctx.fillRect(60,0,240,600);
-  ctx.strokeStyle="#777";
-  ctx.lineWidth=2;
-  for(let i=0;i<10;i++){
-    let y=(i*80+roadY)%600;
-    ctx.beginPath(); ctx.moveTo(120,y); ctx.lineTo(120,y+40); ctx.stroke();
-    ctx.beginPath(); ctx.moveTo(200,y); ctx.lineTo(200,y+40); ctx.stroke();
+  ctx.fillStyle = "#2b2b35";
+  ctx.fillRect(0, 0, c.width, c.height);
+
+  ctx.strokeStyle = "#777";
+  ctx.lineWidth = 2;
+  
+  let yMovement = speed;
+  for(let i = 0; i < 10; i++){
+    let y = (i * 80 + roadY) % c.height;
+    
+    // draw vertical lanes
+    for(let l=1; l < lanes.length; l++){
+      ctx.beginPath();
+      ctx.moveTo(lanes[l-1] + (lanes[l]-lanes[l-1]) / 2, y);
+      ctx.lineTo(lanes[l-1] + (lanes[l]-lanes[l-1]) / 2, y + 40);
+      ctx.stroke();
+    }
   }
-  roadY+=speed;
+  roadY += speed;
 }
 
-/* PURPLE JET */
+/* JET */
 function drawJet(x,y){
   let g=ctx.createLinearGradient(x,y-60,x,y+60);
   g.addColorStop(0,"#e0aaff");
@@ -166,17 +167,17 @@ function drawFlame(){
 
 /* MISSILES */
 function fireMissile(){
-  missiles.push({x:player.x,y:player.y-60});
+  missiles.push({x:player.x, y:player.y-60});
 }
 function drawMissiles(){
-  missiles.forEach(m=>{
-    ctx.fillStyle="#ffea00";
-    ctx.fillRect(m.x-3,m.y,6,22);
-    ctx.fillStyle="#ff9f1c";
-    ctx.fillRect(m.x-1,m.y+20,2,10);
-    m.y-=10 + speed*0.5;
+  missiles.forEach(m => {
+    ctx.fillStyle = "#ffea00";
+    ctx.fillRect(m.x-3, m.y, 6, 22);
+    ctx.fillStyle = "#ff9f1c";
+    ctx.fillRect(m.x-1, m.y+20, 2, 10);
+    m.y -= 10 + speed;
   });
-  missiles=missiles.filter(m=>m.y>-40);
+  missiles = missiles.filter(m => m.y > -40);
 }
 
 /* BLAST */
@@ -194,7 +195,7 @@ function drawBlasts(){
 
 /* ENEMY */
 function spawnEnemy(){
-  let lane=Math.floor(Math.random()*3);
+  let lane=Math.floor(Math.random()*4);
   enemies.push({ x:lanes[lane], y:-120, color:["red","yellow","lime","cyan"][Math.floor(Math.random()*4)] });
 }
 function drawEnemy(e){
@@ -203,19 +204,18 @@ function drawEnemy(e){
   ctx.fillStyle="#000";
   ctx.fillRect(e.x-10,e.y+18,20,25);
 }
-
-/* COLLECTIBLE DOLLARS */
+/* DOLLAR */
 function spawnDollar(){
-  let lane=Math.floor(Math.random()*3);
-  collectibles.push({ x:lanes[lane], y:-50, collected:false });
+  let lane = Math.floor(Math.random() * lanes.length);
+  collectibles.push({x:lanes[lane], y:-50});
 }
 function drawDollars(){
   collectibles.forEach(d=>{
-    ctx.fillStyle="#00ff00";
-    ctx.font="20px Arial";
-    ctx.textAlign="center";
-    ctx.fillText("$",d.x,d.y);
-    d.y+=speed;
+    ctx.fillStyle = "#00ff00";
+    ctx.font = "20px Arial";
+    ctx.textAlign = "center";
+    ctx.fillText("$", d.x, d.y);
+    d.y += speed;
   });
 }
 
@@ -266,7 +266,7 @@ function update(){
 
 /* DRAW */
 function draw(){
-  ctx.clearRect(0,0,360,600);
+  ctx.clearRect(0,0,c.width,c.height);
   drawRoad();
   drawFlame();
   drawJet(player.x,player.y);
@@ -274,7 +274,7 @@ function draw(){
   drawBlasts();
   enemies.forEach(drawEnemy);
   drawDollars();
-  ui.innerText="Score: "+score+" | $: "+dollars;
+  ui.innerText = "Score: "+score+" | $: "+dollars;
 }
 
 function loop(){
