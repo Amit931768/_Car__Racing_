@@ -42,7 +42,7 @@ button:hover{
   color:white;
 }
 
-#fireBtn{ bottom:80px; right:20px; }
+#fireBtn{ bottom:100px; right:20px; }
 #rightBtn{ bottom:10px; right:20px; }
 #leftBtn{ bottom:10px; left:20px; }
 
@@ -224,7 +224,7 @@ function update(){
   if(!running) return;
   player.x=lanes[player.lane];
   addFlame();
-  speed = baseSpeed + score*0.002;
+  speed = baseSpeed + score*0.001;
 
   enemies.forEach(e=>e.y+=speed);
   enemies=enemies.filter(e=>e.y<650);
